@@ -1,5 +1,7 @@
 # ParkShare
 
+A Peer-to-Peer Parking Space Sharing and Booking Platform.
+
 ParkShare is a Java Spring Boot PBL project for peer-to-peer parking space booking. It keeps the backend simple and explainable while providing a polished frontend demo.
 
 ## Technology Stack
