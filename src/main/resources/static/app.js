@@ -122,12 +122,12 @@ function parkingCard(space) {
                 <h3>${space.title}</h3>
                 <span class="badge">${formatVehicle(space.vehicleType)}</span>
             </div>
-            <p>${space.address}</p>
+            <p>${space.address}${space.locality ? `, ${space.locality}` : ""}${space.city ? `, ${space.city}` : ""}</p>
             <div class="card-top">
                 <span class="price">Rs ${space.pricePerHour}/hr</span>
                 <span class="badge warn">${space.host?.name || "Host"}</span>
             </div>
-            <p class="hint">Saved in MySQL through Spring Data JPA and ready for live booking.</p>
+            <p class="hint">${space.description || "Saved in MySQL through Spring Data JPA and ready for live booking."}</p>
             <button class="btn primary" onclick="openDetails(${space.id})">View details</button>
         </article>
     `;
@@ -145,11 +145,19 @@ async function loadParkingSpaces() {
 
     const location = document.getElementById("filterLocation").value.trim();
     const vehicleType = document.getElementById("filterVehicle").value;
+    const minPrice = document.getElementById("filterMinPrice").value;
     const maxPrice = document.getElementById("filterPrice").value;
+    const date = document.getElementById("filterDate").value;
+    const startTime = document.getElementById("filterStart").value;
+    const endTime = document.getElementById("filterEnd").value;
     const params = new URLSearchParams();
     if (location) params.set("location", location);
     if (vehicleType) params.set("vehicleType", vehicleType);
+    if (minPrice) params.set("minPrice", minPrice);
     if (maxPrice) params.set("maxPrice", maxPrice);
+    if (date) params.set("date", date);
+    if (startTime) params.set("startTime", startTime);
+    if (endTime) params.set("endTime", endTime);
 
     try {
         state.spaces = await request(`/api/parking${params.toString() ? `?${params}` : ""}`);
@@ -183,7 +191,7 @@ async function openDetails(id) {
         request(`/api/reviews/parking/${id}`)
     ]);
 
-    const dateValue = document.getElementById("filterDate").value || "2026-10-10";
+    const dateValue = document.getElementById("filterDate").value || "2026-10-20";
     const startValue = document.getElementById("filterStart").value || "10:00";
     const endValue = document.getElementById("filterEnd").value || "12:00";
     const availabilityText = availability.length
@@ -199,7 +207,8 @@ async function openDetails(id) {
                 <div class="detail-hero"></div>
                 <span class="eyebrow">Parking details</span>
                 <h1>${space.title}</h1>
-                <p>${space.address}</p>
+                <p>${space.address}${space.locality ? `, ${space.locality}` : ""}${space.city ? `, ${space.city}` : ""}</p>
+                <p>${space.description || "A verified host parking listing for the ParkShare demo workflow."}</p>
                 <div class="detail-meta">
                     <div><span class="hint">Vehicle</span><strong>${formatVehicle(space.vehicleType)}</strong></div>
                     <div><span class="hint">Price</span><strong>Rs ${space.pricePerHour}/hr</strong></div>
@@ -225,13 +234,45 @@ async function openDetails(id) {
                 <label>End time
                     <input name="endTime" type="time" value="${endValue}" required>
                 </label>
+                <div id="pricePreview" class="booking-summary"></div>
                 <button class="btn primary">Confirm booking</button>
                 <p class="hint">The backend checks availability and calculates price before saving.</p>
             </form>
         </div>
     `;
+    updatePricePreview(space);
+    document.querySelectorAll("#bookingForm input").forEach(input => {
+        input.addEventListener("input", () => updatePricePreview(space));
+    });
     document.getElementById("bookingForm").addEventListener("submit", event => bookSpace(event, space.id));
     document.getElementById("detailModal").classList.remove("hidden");
+}
+
+function updatePricePreview(space) {
+    const form = document.getElementById("bookingForm");
+    const preview = document.getElementById("pricePreview");
+    if (!form || !preview) return;
+    const start = form.elements.startTime.value;
+    const end = form.elements.endTime.value;
+    const minutes = timeDiffMinutes(start, end);
+    if (minutes <= 0 || minutes % 30 !== 0) {
+        preview.innerHTML = "<span>Select a valid 30-minute interval.</span>";
+        return;
+    }
+    const hours = minutes / 60;
+    const total = Number(space.pricePerHour) * hours;
+    preview.innerHTML = `
+        <span>Hourly rate: Rs ${space.pricePerHour}</span>
+        <span>Duration: ${hours} hour${hours === 1 ? "" : "s"}</span>
+        <span>Total estimate: Rs ${total.toFixed(2)}</span>
+    `;
+}
+
+function timeDiffMinutes(start, end) {
+    if (!start || !end) return 0;
+    const [startHour, startMinute] = start.split(":").map(Number);
+    const [endHour, endMinute] = end.split(":").map(Number);
+    return (endHour * 60 + endMinute) - (startHour * 60 + startMinute);
 }
 
 async function bookSpace(event, parkingSpaceId) {
@@ -250,7 +291,8 @@ async function bookSpace(event, parkingSpaceId) {
                 driverId: state.user.id,
                 bookingDate: form.get("bookingDate"),
                 startTime: form.get("startTime"),
-                endTime: form.get("endTime")
+                endTime: form.get("endTime"),
+                vehicleType: state.spaces.find(space => space.id === parkingSpaceId)?.vehicleType
             })
         });
         await request("/api/payments", {
@@ -369,6 +411,7 @@ function hostSpaceCard(space) {
                 <span class="badge">${formatVehicle(space.vehicleType)}</span>
             </div>
             <p>${space.address}</p>
+            <p class="hint">${space.locality || ""}${space.city ? `, ${space.city}` : ""}</p>
             <span class="price">Rs ${space.pricePerHour}/hr</span>
             <p class="hint">Visible to drivers in search while active.</p>
             <div class="card-top">
@@ -386,6 +429,10 @@ function editSpace(space) {
     form.elements.id.value = space.id;
     form.elements.title.value = space.title;
     form.elements.address.value = space.address;
+    form.elements.city.value = space.city || "";
+    form.elements.locality.value = space.locality || "";
+    form.elements.description.value = space.description || "";
+    form.elements.imageUrl.value = space.imageUrl || "";
     form.elements.pricePerHour.value = space.pricePerHour;
     form.elements.vehicleType.value = space.vehicleType;
     form.elements.latitude.value = space.latitude || "";
@@ -529,6 +576,7 @@ document.getElementById("filterBtn").addEventListener("click", loadParkingSpaces
 document.getElementById("clearFiltersBtn").addEventListener("click", () => {
     document.getElementById("filterLocation").value = "";
     document.getElementById("filterVehicle").value = "";
+    document.getElementById("filterMinPrice").value = "";
     document.getElementById("filterPrice").value = "";
     loadParkingSpaces().catch(error => showToast(error.message, true));
 });

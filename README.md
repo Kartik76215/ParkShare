@@ -2,26 +2,33 @@
 
 A Peer-to-Peer Parking Space Sharing and Booking Platform.
 
-ParkShare is a Java Spring Boot PBL project for peer-to-peer parking space booking. It keeps the backend simple and explainable while providing a polished frontend demo.
+ParkShare is a Java Spring Boot PBL project for peer-to-peer parking space booking. It keeps the backend simple and explainable while providing a polished frontend demo connected to REST APIs and MySQL.
 
 ## Technology Stack
 
 - Frontend: HTML, CSS, JavaScript
-- Backend: Java, Spring Boot, REST APIs, Spring Data JPA
+- Backend: Java, Spring Boot, REST APIs, Spring Data JPA, Hibernate
 - Database: MySQL
 - Build tool: Maven
+- Tests: JUnit 5 and Mockito
 
 ## How To Run
 
 1. Start MySQL.
-2. Set your local MySQL password as an environment variable named `DB_PASSWORD`, or leave it empty if your local root user has no password.
-3. Run:
+2. Create a database user/password for your local MySQL. Do not commit the password.
+3. Either set an environment variable named `DB_PASSWORD`, or create a local ignored file named `application-local.properties` in the project root:
+
+```properties
+spring.datasource.password=YOUR_MYSQL_PASSWORD
+```
+
+4. Run:
 
 ```bash
 mvn spring-boot:run
 ```
 
-4. Open:
+5. Open:
 
 ```text
 http://localhost:8080
@@ -29,10 +36,14 @@ http://localhost:8080
 
 The database `parkshare` is created automatically if it does not already exist.
 
+If Maven is not available in the terminal, open the project in IntelliJ IDEA and run `ParkShareApplication`, or use the local `run-parkshare.bat` helper on this laptop.
+
 ## Demo Login
 
 - Host: `host@parkshare.com` / `1234`
 - Driver: `driver@parkshare.com` / `1234`
+
+The sample passwords are stored as PBKDF2 hashes in `data.sql`. Existing old demo rows with plain text passwords are upgraded after a successful login.
 
 ## Project Structure
 
@@ -77,6 +88,7 @@ POST   /api/users/register
 POST   /api/users/login
 
 GET    /api/parking
+GET    /api/parking?location=Pune&vehicleType=CAR&minPrice=20&maxPrice=100&date=2026-10-20&startTime=10:00&endTime=12:00
 GET    /api/parking/{id}
 GET    /api/parking/host/{hostId}
 POST   /api/parking
@@ -109,7 +121,10 @@ totalPrice = durationInHours * pricePerHour
 Before saving a booking, `BookingService` checks:
 
 - Parking space exists.
+- Parking space is active.
 - Driver role is correct.
+- Requested vehicle type matches the parking listing.
+- Start and end time are valid 30-minute intervals.
 - Requested time is inside the host's availability.
 - Requested time does not overlap an existing confirmed booking.
 
@@ -146,6 +161,8 @@ Payment is simulated. No real gateway is used. A successful payment record is sa
 10. Cancel booking.
 11. Add review.
 
+Use the sample date `2026-10-20` for the seeded parking spaces.
+
 ## Second Demo Checklist
 
 1. Show package structure.
@@ -155,3 +172,26 @@ Payment is simulated. No real gateway is used. A successful payment record is sa
 5. Explain repositories and JPA.
 6. Show MySQL connection in `application.properties`.
 7. Demonstrate live API request and database update.
+
+## Tests
+
+Run:
+
+```bash
+mvn test
+```
+
+Current automated tests cover:
+
+- Partial-period booking and fractional price calculation.
+- Overlapping booking rejection.
+- Adjacent booking acceptance using `[start, end)` interval rules.
+- Invalid 30-minute interval rejection.
+- Vehicle type mismatch rejection.
+
+## Current Limitations
+
+- Authentication is intentionally simple for a BCA PBL project. It uses login responses stored by the frontend instead of JWT/session security.
+- Each parking listing currently supports one selected vehicle type. Multiple vehicle type support can be added later if required.
+- Payment is a simulation only. No real card, UPI or banking details are collected.
+- Map and distance-based search are not implemented; search uses address/city/locality text and filters.

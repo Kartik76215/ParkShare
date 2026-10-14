@@ -591,6 +591,10 @@ input:focus, select:focus, textarea:focus {
     border-radius: 8px;
 }
 
+.wide-field {
+    grid-column: span 2;
+}
+
 .table-wrap {
     overflow-x: auto;
     background: var(--surface);
@@ -822,6 +826,10 @@ tbody tr:hover {
     .sidebar,
     .detail-meta {
         grid-template-columns: 1fr;
+    }
+
+    .wide-field {
+        grid-column: span 1;
     }
 
     .footer {
