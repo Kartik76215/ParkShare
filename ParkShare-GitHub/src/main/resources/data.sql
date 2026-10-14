@@ -1,2 +1,0 @@
--- This public project copy intentionally starts with an empty database.
--- Register a Host and Driver through the application to create demonstration data.
