@@ -12,9 +12,11 @@ import org.springframework.stereotype.Service;
 @Service
 public class UserService {
     private final UserRepository userRepository;
+    private final PasswordService passwordService;
 
-    public UserService(UserRepository userRepository) {
+    public UserService(UserRepository userRepository, PasswordService passwordService) {
         this.userRepository = userRepository;
+        this.passwordService = passwordService;
     }
 
     public UserResponse register(RegisterRequest request) {
@@ -28,7 +30,7 @@ public class UserService {
         User user = new User();
         user.setName(request.getName());
         user.setEmail(request.getEmail());
-        user.setPassword(request.getPassword());
+        user.setPassword(passwordService.hash(request.getPassword()));
         user.setRole(request.getRole());
         return new UserResponse(userRepository.save(user));
     }
@@ -36,8 +38,12 @@ public class UserService {
     public UserResponse login(LoginRequest request) {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new BadRequestException("Invalid email or password."));
-        if (!user.getPassword().equals(request.getPassword())) {
+        if (!passwordService.matches(request.getPassword(), user.getPassword())) {
             throw new BadRequestException("Invalid email or password.");
+        }
+        if (!passwordService.isHashed(user.getPassword())) {
+            user.setPassword(passwordService.hash(request.getPassword()));
+            userRepository.save(user);
         }
         return new UserResponse(user);
     }

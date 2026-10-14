@@ -48,6 +48,9 @@ public class ReviewService {
 
         User driver = userService.getUser(request.getDriverId());
         ParkingSpace parkingSpace = parkingService.getParkingSpace(request.getParkingSpaceId());
+        if (!booking.getParkingSpace().getId().equals(parkingSpace.getId())) {
+            throw new BadRequestException("Review must match the booked parking space.");
+        }
 
         Review review = new Review();
         review.setBooking(booking);

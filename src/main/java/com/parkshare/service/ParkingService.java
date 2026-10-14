@@ -11,6 +11,8 @@ import com.parkshare.exception.ResourceNotFoundException;
 import com.parkshare.repository.AvailabilityRepository;
 import com.parkshare.repository.ParkingSpaceRepository;
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import org.springframework.stereotype.Service;
 
@@ -34,12 +36,21 @@ public class ParkingService {
         return parkingSpaceRepository.findByActiveTrue();
     }
 
-    public List<ParkingSpace> search(String location, VehicleType vehicleType, BigDecimal maxPrice) {
+    public List<ParkingSpace> search(
+            String location,
+            VehicleType vehicleType,
+            BigDecimal minPrice,
+            BigDecimal maxPrice,
+            LocalDate date,
+            LocalTime startTime,
+            LocalTime endTime
+    ) {
         return getAllActiveSpaces().stream()
-                .filter(space -> location == null || location.isBlank()
-                        || space.getAddress().toLowerCase().contains(location.toLowerCase()))
+                .filter(space -> matchesLocation(space, location))
                 .filter(space -> vehicleType == null || space.getVehicleType() == vehicleType)
+                .filter(space -> minPrice == null || space.getPricePerHour().compareTo(minPrice) >= 0)
                 .filter(space -> maxPrice == null || space.getPricePerHour().compareTo(maxPrice) <= 0)
+                .filter(space -> matchesAvailability(space, date, startTime, endTime))
                 .toList();
     }
 
@@ -91,8 +102,13 @@ public class ParkingService {
     }
 
     private void copyRequestToParkingSpace(ParkingRequest request, ParkingSpace parkingSpace) {
+        validateParkingRequest(request);
         parkingSpace.setTitle(request.getTitle());
         parkingSpace.setAddress(request.getAddress());
+        parkingSpace.setCity(request.getCity());
+        parkingSpace.setLocality(request.getLocality());
+        parkingSpace.setDescription(request.getDescription());
+        parkingSpace.setImageUrl(request.getImageUrl());
         parkingSpace.setLatitude(request.getLatitude());
         parkingSpace.setLongitude(request.getLongitude());
         parkingSpace.setPricePerHour(request.getPricePerHour());
@@ -112,5 +128,49 @@ public class ParkingService {
         availability.setStartTime(request.getStartTime());
         availability.setEndTime(request.getEndTime());
         availabilityRepository.save(availability);
+    }
+
+    private void validateParkingRequest(ParkingRequest request) {
+        if (isBlank(request.getTitle()) || isBlank(request.getAddress())) {
+            throw new BadRequestException("Parking title and address are required.");
+        }
+        if (request.getPricePerHour() == null || request.getPricePerHour().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BadRequestException("Price per hour must be positive.");
+        }
+        if (request.getVehicleType() == null) {
+            throw new BadRequestException("Vehicle type is required.");
+        }
+    }
+
+    private boolean matchesLocation(ParkingSpace space, String location) {
+        if (location == null || location.isBlank()) {
+            return true;
+        }
+        String text = (safe(space.getAddress()) + " " + safe(space.getCity()) + " " + safe(space.getLocality()))
+                .toLowerCase();
+        return text.contains(location.toLowerCase());
+    }
+
+    private boolean matchesAvailability(ParkingSpace space, LocalDate date, LocalTime startTime, LocalTime endTime) {
+        if (date == null) {
+            return true;
+        }
+        return availabilityRepository.findByParkingSpaceIdAndDate(space.getId(), date).stream()
+                .anyMatch(availability -> {
+                    if (startTime == null || endTime == null) {
+                        return true;
+                    }
+                    return !startTime.isBefore(availability.getStartTime())
+                            && !endTime.isAfter(availability.getEndTime())
+                            && startTime.isBefore(endTime);
+                });
+    }
+
+    private String safe(String value) {
+        return value == null ? "" : value;
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 }

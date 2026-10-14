@@ -14,8 +14,10 @@ import com.parkshare.repository.BookingRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class BookingService {
@@ -36,12 +38,16 @@ public class BookingService {
         this.userService = userService;
     }
 
+    @Transactional
     public Booking createBooking(BookingRequest request) {
-        if (!request.getStartTime().isBefore(request.getEndTime())) {
-            throw new BadRequestException("Booking start time must be before end time.");
-        }
-
+        validateRequestBasics(request);
         ParkingSpace parkingSpace = parkingService.getParkingSpace(request.getParkingSpaceId());
+        if (!parkingSpace.isActive()) {
+            throw new BadRequestException("Parking space is not active.");
+        }
+        if (request.getVehicleType() != null && parkingSpace.getVehicleType() != request.getVehicleType()) {
+            throw new BadRequestException("Selected vehicle type is not allowed for this parking space.");
+        }
         User driver = userService.getUser(request.getDriverId());
         if (driver.getRole() != UserRole.DRIVER) {
             throw new BadRequestException("Only drivers can book parking spaces.");
@@ -55,8 +61,10 @@ public class BookingService {
         booking.setBookingDate(request.getBookingDate());
         booking.setStartTime(request.getStartTime());
         booking.setEndTime(request.getEndTime());
+        booking.setHourlyRateSnapshot(parkingSpace.getPricePerHour());
         booking.setTotalPrice(calculatePrice(request, parkingSpace));
         booking.setStatus(BookingStatus.CONFIRMED);
+        booking.setCreatedAt(LocalDateTime.now());
         return bookingRepository.save(booking);
     }
 
@@ -95,6 +103,20 @@ public class BookingService {
         long minutes = Duration.between(request.getStartTime(), request.getEndTime()).toMinutes();
         BigDecimal hours = BigDecimal.valueOf(minutes).divide(BigDecimal.valueOf(60), 2, RoundingMode.HALF_UP);
         return parkingSpace.getPricePerHour().multiply(hours).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private void validateRequestBasics(BookingRequest request) {
+        if (request.getParkingSpaceId() == null || request.getDriverId() == null || request.getBookingDate() == null
+                || request.getStartTime() == null || request.getEndTime() == null) {
+            throw new BadRequestException("Parking space, driver, date, start time and end time are required.");
+        }
+        if (!request.getStartTime().isBefore(request.getEndTime())) {
+            throw new BadRequestException("Booking start time must be before end time.");
+        }
+        long minutes = Duration.between(request.getStartTime(), request.getEndTime()).toMinutes();
+        if (minutes <= 0 || minutes % 30 != 0) {
+            throw new BadRequestException("Booking duration must be in 30 minute intervals.");
+        }
     }
 
     private void checkAvailability(BookingRequest request) {

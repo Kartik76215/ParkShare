@@ -4,5 +4,6 @@ public enum VehicleType {
     TWO_WHEELER,
     CAR,
     SUV,
-    VAN
+    VAN,
+    OTHER
 }

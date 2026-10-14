@@ -9,6 +9,10 @@ public class ParkingRequest {
     private Long hostId;
     private String title;
     private String address;
+    private String city;
+    private String locality;
+    private String description;
+    private String imageUrl;
     private Double latitude;
     private Double longitude;
     private BigDecimal pricePerHour;
@@ -39,6 +43,38 @@ public class ParkingRequest {
 
     public void setAddress(String address) {
         this.address = address;
+    }
+
+    public String getCity() {
+        return city;
+    }
+
+    public void setCity(String city) {
+        this.city = city;
+    }
+
+    public String getLocality() {
+        return locality;
+    }
+
+    public void setLocality(String locality) {
+        this.locality = locality;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
     }
 
     public Double getLatitude() {

@@ -1,5 +1,6 @@
 package com.parkshare.dto;
 
+import com.parkshare.entity.VehicleType;
 import java.time.LocalDate;
 import java.time.LocalTime;
 
@@ -9,6 +10,7 @@ public class BookingRequest {
     private LocalDate bookingDate;
     private LocalTime startTime;
     private LocalTime endTime;
+    private VehicleType vehicleType;
 
     public Long getParkingSpaceId() {
         return parkingSpaceId;
@@ -48,5 +50,13 @@ public class BookingRequest {
 
     public void setEndTime(LocalTime endTime) {
         this.endTime = endTime;
+    }
+
+    public VehicleType getVehicleType() {
+        return vehicleType;
+    }
+
+    public void setVehicleType(VehicleType vehicleType) {
+        this.vehicleType = vehicleType;
     }
 }

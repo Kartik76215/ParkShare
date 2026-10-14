@@ -6,6 +6,8 @@ import com.parkshare.entity.ParkingSpace;
 import com.parkshare.entity.VehicleType;
 import com.parkshare.service.ParkingService;
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import org.springframework.web.bind.annotation.*;
 
@@ -23,9 +25,13 @@ public class ParkingController {
     public List<ParkingSpace> getParkingSpaces(
             @RequestParam(required = false) String location,
             @RequestParam(required = false) VehicleType vehicleType,
-            @RequestParam(required = false) BigDecimal maxPrice
+            @RequestParam(required = false) BigDecimal minPrice,
+            @RequestParam(required = false) BigDecimal maxPrice,
+            @RequestParam(required = false) LocalDate date,
+            @RequestParam(required = false) LocalTime startTime,
+            @RequestParam(required = false) LocalTime endTime
     ) {
-        return parkingService.search(location, vehicleType, maxPrice);
+        return parkingService.search(location, vehicleType, minPrice, maxPrice, date, startTime, endTime);
     }
 
     @GetMapping("/{id}")

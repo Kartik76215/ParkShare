@@ -3,6 +3,7 @@ package com.parkshare.entity;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 
 @Entity
@@ -20,7 +21,9 @@ public class Booking {
     private LocalDate bookingDate;
     private LocalTime startTime;
     private LocalTime endTime;
+    private BigDecimal hourlyRateSnapshot;
     private BigDecimal totalPrice;
+    private LocalDateTime createdAt;
 
     @Enumerated(EnumType.STRING)
     private BookingStatus status;
@@ -79,6 +82,22 @@ public class Booking {
 
     public void setTotalPrice(BigDecimal totalPrice) {
         this.totalPrice = totalPrice;
+    }
+
+    public BigDecimal getHourlyRateSnapshot() {
+        return hourlyRateSnapshot;
+    }
+
+    public void setHourlyRateSnapshot(BigDecimal hourlyRateSnapshot) {
+        this.hourlyRateSnapshot = hourlyRateSnapshot;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
     }
 
     public BookingStatus getStatus() {

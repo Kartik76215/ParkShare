@@ -17,6 +17,14 @@ public class ParkingSpace {
     @Column(length = 500)
     private String address;
 
+    private String city;
+    private String locality;
+
+    @Column(length = 1000)
+    private String description;
+
+    private String imageUrl;
+
     private Double latitude;
     private Double longitude;
 
@@ -57,6 +65,38 @@ public class ParkingSpace {
 
     public void setAddress(String address) {
         this.address = address;
+    }
+
+    public String getCity() {
+        return city;
+    }
+
+    public void setCity(String city) {
+        this.city = city;
+    }
+
+    public String getLocality() {
+        return locality;
+    }
+
+    public void setLocality(String locality) {
+        this.locality = locality;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
     }
 
     public Double getLatitude() {
