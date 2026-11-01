@@ -15,6 +15,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -62,7 +63,11 @@ public class BookingService {
         booking.setStartTime(request.getStartTime());
         booking.setEndTime(request.getEndTime());
         booking.setHourlyRateSnapshot(parkingSpace.getPricePerHour());
-        booking.setTotalPrice(calculatePrice(request, parkingSpace));
+        booking.setTotalPrice(calculateTotalPrice(
+                request.getStartTime(),
+                request.getEndTime(),
+                parkingSpace.getPricePerHour()
+        ));
         booking.setStatus(BookingStatus.CONFIRMED);
         booking.setCreatedAt(LocalDateTime.now());
         return bookingRepository.save(booking);
@@ -99,10 +104,10 @@ public class BookingService {
         return bookingRepository.save(booking);
     }
 
-    private BigDecimal calculatePrice(BookingRequest request, ParkingSpace parkingSpace) {
-        long minutes = Duration.between(request.getStartTime(), request.getEndTime()).toMinutes();
+    private BigDecimal calculateTotalPrice(LocalTime startTime, LocalTime endTime, BigDecimal hourlyRate) {
+        long minutes = Duration.between(startTime, endTime).toMinutes();
         BigDecimal hours = BigDecimal.valueOf(minutes).divide(BigDecimal.valueOf(60), 2, RoundingMode.HALF_UP);
-        return parkingSpace.getPricePerHour().multiply(hours).setScale(2, RoundingMode.HALF_UP);
+        return hourlyRate.multiply(hours).setScale(2, RoundingMode.HALF_UP);
     }
 
     private void validateRequestBasics(BookingRequest request) {
@@ -123,11 +128,7 @@ public class BookingService {
         List<Availability> availabilityList = availabilityRepository
                 .findByParkingSpaceIdAndDate(request.getParkingSpaceId(), request.getBookingDate());
 
-        boolean insideAvailableTime = availabilityList.stream().anyMatch(availability ->
-                !request.getStartTime().isBefore(availability.getStartTime())
-                        && !request.getEndTime().isAfter(availability.getEndTime())
-        );
-        if (!insideAvailableTime) {
+        if (!isInsideHostAvailability(request, availabilityList)) {
             throw new BadRequestException("Parking space is not available for the selected time.");
         }
 
@@ -137,12 +138,31 @@ public class BookingService {
                 List.of(BookingStatus.PENDING, BookingStatus.CONFIRMED)
         );
 
-        boolean hasOverlap = existingBookings.stream().anyMatch(existing ->
-                request.getStartTime().isBefore(existing.getEndTime())
-                        && request.getEndTime().isAfter(existing.getStartTime())
-        );
-        if (hasOverlap) {
+        if (hasBookingConflict(request, existingBookings)) {
             throw new BadRequestException("Selected time conflicts with an existing booking.");
         }
+    }
+
+    private boolean isInsideHostAvailability(BookingRequest request, List<Availability> availabilityList) {
+        for (Availability availability : availabilityList) {
+            boolean startsAfterAvailability = !request.getStartTime().isBefore(availability.getStartTime());
+            boolean endsBeforeAvailability = !request.getEndTime().isAfter(availability.getEndTime());
+            if (startsAfterAvailability && endsBeforeAvailability) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean hasBookingConflict(BookingRequest request, List<Booking> existingBookings) {
+        for (Booking existingBooking : existingBookings) {
+            // [start, end) makes 10:00-12:00 and 12:00-14:00 valid adjacent bookings.
+            boolean startsBeforeExistingEnds = request.getStartTime().isBefore(existingBooking.getEndTime());
+            boolean endsAfterExistingStarts = request.getEndTime().isAfter(existingBooking.getStartTime());
+            if (startsBeforeExistingEnds && endsAfterExistingStarts) {
+                return true;
+            }
+        }
+        return false;
     }
 }

@@ -13,6 +13,7 @@ import com.parkshare.repository.ParkingSpaceRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.List;
 import org.springframework.stereotype.Service;
 
@@ -45,13 +46,28 @@ public class ParkingService {
             LocalTime startTime,
             LocalTime endTime
     ) {
-        return getAllActiveSpaces().stream()
-                .filter(space -> matchesLocation(space, location))
-                .filter(space -> vehicleType == null || space.getVehicleType() == vehicleType)
-                .filter(space -> minPrice == null || space.getPricePerHour().compareTo(minPrice) >= 0)
-                .filter(space -> maxPrice == null || space.getPricePerHour().compareTo(maxPrice) <= 0)
-                .filter(space -> matchesAvailability(space, date, startTime, endTime))
-                .toList();
+        List<ParkingSpace> matchingSpaces = new ArrayList<>();
+
+        for (ParkingSpace space : getAllActiveSpaces()) {
+            if (!matchesLocation(space, location)) {
+                continue;
+            }
+            if (vehicleType != null && space.getVehicleType() != vehicleType) {
+                continue;
+            }
+            if (minPrice != null && space.getPricePerHour().compareTo(minPrice) < 0) {
+                continue;
+            }
+            if (maxPrice != null && space.getPricePerHour().compareTo(maxPrice) > 0) {
+                continue;
+            }
+            if (!matchesAvailability(space, date, startTime, endTime)) {
+                continue;
+            }
+            matchingSpaces.add(space);
+        }
+
+        return matchingSpaces;
     }
 
     public ParkingSpace getParkingSpace(Long id) {
@@ -155,15 +171,18 @@ public class ParkingService {
         if (date == null) {
             return true;
         }
-        return availabilityRepository.findByParkingSpaceIdAndDate(space.getId(), date).stream()
-                .anyMatch(availability -> {
-                    if (startTime == null || endTime == null) {
-                        return true;
-                    }
-                    return !startTime.isBefore(availability.getStartTime())
-                            && !endTime.isAfter(availability.getEndTime())
-                            && startTime.isBefore(endTime);
-                });
+        List<Availability> availabilityList = availabilityRepository.findByParkingSpaceIdAndDate(space.getId(), date);
+        for (Availability availability : availabilityList) {
+            if (startTime == null || endTime == null) {
+                return true;
+            }
+            boolean startsAfterAvailability = !startTime.isBefore(availability.getStartTime());
+            boolean endsBeforeAvailability = !endTime.isAfter(availability.getEndTime());
+            if (startsAfterAvailability && endsBeforeAvailability && startTime.isBefore(endTime)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private String safe(String value) {
